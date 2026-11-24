@@ -25,6 +25,96 @@
           this.clear();
         }
       });
+      AFRAME.registerComponent("fit-size", {
+        schema: { max: { type: "number", default: 0.5 } },
+        init: function () {
+          this.el.addEventListener("model-loaded", () => {
+            const THREE = AFRAME.THREE;
+            const root = this.el.object3D;
+            const saved = [];
+            let node = root;
+            while (node) {
+              saved.push({
+                node: node,
+                matrix: node.matrix.clone(),
+                auto: node.matrixAutoUpdate,
+                visible: node.visible
+              });
+              node.matrix.identity();
+              node.matrixAutoUpdate = false;
+              node.visible = true;
+              node = node.parent;
+            }
+            root.updateMatrixWorld(true);
+            const box = new THREE.Box3().setFromObject(root);
+            saved.forEach((item) => {
+              item.node.matrix.copy(item.matrix);
+              item.node.matrixAutoUpdate = item.auto;
+              item.node.visible = item.visible;
+              item.node.matrixWorldNeedsUpdate = true;
+            });
+            const size = new THREE.Vector3();
+            const center = new THREE.Vector3();
+            box.getSize(size);
+            box.getCenter(center);
+            const maxDim = Math.max(size.x, size.y, size.z) || 1;
+            const scale = this.data.max / maxDim;
+            root.scale.setScalar(scale);
+            root.position.copy(center).multiplyScalar(-scale);
+          });
+        }
+      });
+      AFRAME.registerComponent("starfield", {
+        schema: { count: { type: "int", default: 72 } },
+        init: function () {
+          const THREE = AFRAME.THREE;
+          const canvas = document.createElement("canvas");
+          canvas.width = 64;
+          canvas.height = 64;
+          const ctx = canvas.getContext("2d");
+          const glow = ctx.createRadialGradient(32, 32, 0, 32, 32, 32);
+          glow.addColorStop(0, "rgba(255,255,255,1)");
+          glow.addColorStop(0.22, "rgba(255,246,214,0.95)");
+          glow.addColorStop(0.5, "rgba(186,206,255,0.28)");
+          glow.addColorStop(1, "rgba(255,255,255,0)");
+          ctx.fillStyle = glow;
+          ctx.fillRect(0, 0, 64, 64);
+          const map = new THREE.CanvasTexture(canvas);
+          const colors = [0xfff6d2, 0xffffff, 0xc9dcff];
+          const materials = colors.map((color) => new THREE.SpriteMaterial({
+            map: map,
+            color: color,
+            transparent: true,
+            depthWrite: false
+          }));
+          this.stars = [];
+          const group = new THREE.Group();
+          for (let i = 0; i < this.data.count; i++) {
+            const star = new THREE.Sprite(materials[i % materials.length]);
+            const angle = Math.random() * Math.PI * 2;
+            const reach = 0.72 + Math.random() * 0.62;
+            star.position.set(
+              Math.cos(angle) * reach * 0.82,
+              Math.sin(angle) * reach,
+              0.05 + Math.random() * 0.7
+            );
+            star.userData.base = 0.045 + Math.random() * 0.09;
+            star.userData.phase = Math.random() * Math.PI * 2;
+            star.userData.speed = 1.4 + Math.random() * 3.2;
+            star.scale.setScalar(star.userData.base);
+            group.add(star);
+            this.stars.push(star);
+          }
+          this.el.setObject3D("mesh", group);
+        },
+        tick: function (time) {
+          const seconds = time / 1000;
+          this.stars.forEach((star) => {
+            const twinkle = 0.35 + 0.65 * (0.5 + 0.5 * Math.sin(seconds * star.userData.speed + star.userData.phase));
+            star.scale.setScalar(star.userData.base * twinkle);
+          });
+        }
+      });
       AFRAME.registerComponent("play-on-target", {
         init: function () {
           const video = document.querySelector("#book-video");
@@ -57,7 +147,7 @@
       vr-mode-ui="enabled: false"
       device-orientation-permission-ui="enabled: false"
       embedded>
-      <a-assets>
+      <a-assets timeout="30000">
         <video
           id="book-video"
           src="assets/book.mp4"
@@ -65,11 +155,26 @@
           loop
           playsinline
           webkit-playsinline></video>
+        <a-asset-item id="spacecraft" src="assets/spacecraft.glb"></a-asset-item>
       </a-assets>
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
       <a-entity mindar-image-target="targetIndex: 0" play-on-target>
         <!-- Cover is 326×500. MindAR target width is 1. -->
         <a-video src="#book-video" position="0 0 0" width="1" height="1.533742"></a-video>
+        <a-entity starfield="count: 72"></a-entity>
+        <a-entity light="type: ambient; color: #eef3ff; intensity: 1.8"></a-entity>
+        <a-entity light="type: directional; color: #ffffff; intensity: 2.4" position="0.4 0.8 1"></a-entity>
+        <a-entity light="type: directional; color: #9eb6ff; intensity: 1.2" position="-0.5 -0.3 0.6"></a-entity>
+        <a-entity rotation="22 8 0">
+          <a-entity animation="property: rotation; to: 0 0 360; loop: true; dur: 12000; easing: linear">
+            <a-entity position="1.08 0 0.12">
+              <a-entity
+                gltf-model="#spacecraft"
+                fit-size="max: 0.5"
+                animation="property: rotation; to: 0 360 0; loop: true; dur: 9000; easing: linear"></a-entity>
+            </a-entity>
+          </a-entity>
+        </a-entity>
       </a-entity>
     </a-scene>
 
