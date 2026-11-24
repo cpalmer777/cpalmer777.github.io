@@ -5,17 +5,24 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <title>Book cover</title>
-    <link rel="stylesheet" href="style.css?v=3">
+    <link rel="stylesheet" href="style.css?v=4">
     <!-- Order: A-Frame, then MindAR's A-Frame build, then our component. -->
     <script src="https://aframe.io/releases/1.8.0/aframe.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/mind-ar@1.2.5/dist/mindar-image-aframe.prod.js"></script>
     <script>
       AFRAME.registerComponent("transparent-canvas", {
+        clear: function () {
+          const scene = this.el;
+          if (!scene.renderer) return;
+          scene.object3D.background = null;
+          scene.renderer.setClearColor(0x000000, 0);
+          scene.renderer.setClearAlpha(0);
+        },
         init: function () {
-          this.el.renderer.setClearColor(0x000000, 0);
+          this.clear();
         },
         tick: function () {
-          this.el.renderer.setClearColor(0x000000, 0);
+          this.clear();
         }
       });
       AFRAME.registerComponent("play-on-target", {
@@ -44,6 +51,8 @@
       mindar-image="imageTargetSrc: assets/cert.mind; autoStart: false; uiScanning: no; uiLoading: no; uiError: no;"
       color-space="sRGB"
       renderer="alpha: true; colorManagement: true; physicallyCorrectLights: true"
+      background="transparent: true"
+      loading-screen="enabled: false"
       transparent-canvas
       vr-mode-ui="enabled: false"
       device-orientation-permission-ui="enabled: false"
@@ -84,7 +93,9 @@
         } catch (err) {
           video.muted = true;
         }
-        await scene.systems["mindar-image-system"].start();
+        const ar = scene.systems["mindar-image-system"];
+        await ar.start();
+        if (ar.video) ar.video.style.setProperty("z-index", "1", "important");
         splash.hidden = true;
       });
     </script>

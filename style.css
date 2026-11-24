@@ -2,17 +2,30 @@ html, body {
   margin: 0;
   height: 100%;
   overflow: hidden;
-  background: #0e1116;
+  background: transparent;
   color: #f4f1ea;
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 }
 
-a-scene,
-.a-canvas {
+/* MindAR inserts the camera as a direct child of body at z-index -2.
+   Phones paint that behind the page background, so the area around the
+   book looks black. Keep the camera above the page and the scene above it. */
+body > video {
+  position: absolute !important;
+  z-index: 1 !important;
+}
+
+a-scene {
   position: fixed;
   inset: 0;
+  z-index: 2;
   width: 100%;
   height: 100%;
+  background: transparent !important;
+}
+
+.a-canvas {
+  position: absolute !important;
   background: transparent !important;
 }
 
