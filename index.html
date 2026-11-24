@@ -147,15 +147,15 @@
       vr-mode-ui="enabled: false"
       device-orientation-permission-ui="enabled: false"
       embedded>
-      <a-assets timeout="30000">
+      <a-assets>
         <video
           id="book-video"
           src="assets/book.mp4"
-          preload="auto"
+          preload="metadata"
           loop
           playsinline
-          webkit-playsinline></video>
-        <a-asset-item id="spacecraft" src="assets/spacecraft.glb"></a-asset-item>
+          webkit-playsinline
+          crossorigin="anonymous"></video>
       </a-assets>
       <a-camera position="0 0 0" look-controls="enabled: false"></a-camera>
       <a-entity mindar-image-target="targetIndex: 0" play-on-target>
@@ -169,7 +169,7 @@
           <a-entity animation="property: rotation; to: 0 0 360; loop: true; dur: 12000; easing: linear">
             <a-entity position="1.08 0 0.12">
               <a-entity
-                gltf-model="#spacecraft"
+                gltf-model="assets/spacecraft.glb"
                 fit-size="max: 0.5"
                 animation="property: rotation; to: 0 360 0; loop: true; dur: 9000; easing: linear"></a-entity>
             </a-entity>
@@ -184,24 +184,40 @@
       const scene = document.querySelector("a-scene");
       const video = document.querySelector("#book-video");
 
-      scene.addEventListener("loaded", () => {
+      const enableStart = () => {
         start.disabled = false;
+      };
+      if (scene.hasLoaded) enableStart();
+      scene.addEventListener("loaded", enableStart);
+      scene.addEventListener("arError", () => {
+        splash.hidden = false;
+        start.disabled = false;
+        start.textContent = "Camera blocked. Try again";
       });
 
-      start.addEventListener("click", async () => {
-        start.disabled = true;
-        video.muted = false;
-        try {
-          await video.play();
-          video.pause();
-          video.currentTime = 0;
-        } catch (err) {
-          video.muted = true;
-        }
+      start.addEventListener("click", () => {
         const ar = scene.systems["mindar-image-system"];
-        await ar.start();
-        if (ar.video) ar.video.style.setProperty("z-index", "1", "important");
-        splash.hidden = true;
+        if (!ar) return;
+        start.disabled = true;
+        try {
+          ar.start();
+          if (ar.video) ar.video.style.setProperty("z-index", "1", "important");
+          splash.hidden = true;
+        } catch (err) {
+          start.disabled = false;
+          start.textContent = "Camera blocked. Try again";
+          return;
+        }
+        video.muted = false;
+        const unlock = video.play();
+        if (unlock) {
+          unlock.then(() => {
+            video.pause();
+            video.currentTime = 0;
+          }).catch(() => {
+            video.muted = true;
+          });
+        }
       });
     </script>
   </body>
